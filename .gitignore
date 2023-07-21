@@ -3,3 +3,4 @@ __pycache__/
 data/hinet/*
 results/picks/*
 results/plots/*
+test/*

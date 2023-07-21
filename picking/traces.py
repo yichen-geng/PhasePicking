@@ -9,7 +9,7 @@ from obspy import read
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.taup import TauPyModel
 
-from basic.basic_functions import calculate_distaz, calculate_signal_to_noise_ratio
+from basic_functions import calculate_distaz, calculate_signal_to_noise_ratio
 
 # define global variables
 half_win_len = 20
@@ -32,13 +32,27 @@ def preprocess_traces(event_dir, phase='PcP'):
     ev_lat = ev['latitude']
     ev_lon = ev['longitude']
     ev_dep = ev['depth']
+    ev_locs = (ev_lat, ev_lon)
+
+    # create distance contours
+    LON = np.arange(125, 150.1, 0.1)
+    LAT = np.arange(30, 46.1, 0.1)
+    LON, LAT = np.meshgrid(LON, LAT)
+    Z = np.zeros_like(LON)
+    for i in range(LON.shape[0]):
+        for j in range(LON.shape[1]):
+            lon, lat = LON[i][j], LAT[i][j]
+            distance, _, _ = calculate_distaz(lat, lon, ev_lat, ev_lon)
+            Z[i][j] = distance
+    distance_contours = (LON, LAT, Z)
 
     # load station metadata
     stations = pd.read_csv("../data/metadata/stations.csv")
 
-    station_names = []
+    st_names = []
+    st_locs = []
     distances = []
-    bazs = []
+    tts = []
     sn_ratios = []
     stream_long_data = []
     stream_short_data = []
@@ -73,9 +87,10 @@ def preprocess_traces(event_dir, phase='PcP'):
                 # calculate signal-to-noise ratio
                 sn_ratio = calculate_signal_to_noise_ratio(trace_short_data, sampling_rate)
 
-                station_names.append(st_name)
+                st_names.append(st_name)
+                st_locs.append((st_lat, st_lon))
                 distances.append(distance)
-                bazs.append(baz)
+                tts.append(travel_time)
                 sn_ratios.append(sn_ratio)
                 stream_long_data.append(trace_long_data)
                 stream_short_data.append(trace_short_data)
@@ -83,20 +98,23 @@ def preprocess_traces(event_dir, phase='PcP'):
     # convert to numpy.array
     stream_short_data = np.array(stream_short_data)
     stream_long_data = np.array(stream_long_data)
-    station_names = np.array(station_names)
+    st_names = np.array(st_names)
+    st_locs = np.array(st_locs)
     distances = np.array(distances)
-    bazs = np.array(bazs)
+    tts = np.array(tts)
     sn_ratios = np.array(sn_ratios)
     # sort by signal-to-noise ratio
     sort_indices = np.argsort(sn_ratios)[::-1]
     stream_short_data_sorted = stream_short_data[sort_indices]
     stream_long_data_sorted = stream_long_data[sort_indices]
-    station_names_sorted = station_names[sort_indices]
+    st_names_sorted = st_names[sort_indices]
+    st_locs_sorted = st_locs[sort_indices]
     distances_sorted = distances[sort_indices]
-    bazs_sorted = bazs[sort_indices]
+    tts_sorted = tts[sort_indices]
     sn_ratios_sorted = sn_ratios[sort_indices]
 
-    return station_names_sorted, distances_sorted, bazs_sorted, sn_ratios_sorted, \
+    return ev_locs, distance_contours, \
+           st_names_sorted, st_locs_sorted, distances_sorted, tts_sorted, sn_ratios_sorted, \
            stream_long_data_sorted, stream_short_data_sorted
 
 
@@ -260,5 +278,4 @@ def plot_record_section(stream_data, distances, station_idx, sn_ratios, ax1, ax2
 # TODO: UserWarning: Warning: converting a masked element to nan.
 #   xys = np.asarray(xys)
 # TODO: analysis
-# TODO: delete unneeded functions in basic functions
 # TODO: creat git for the project (structures, dependency...)

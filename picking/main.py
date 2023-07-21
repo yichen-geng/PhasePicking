@@ -2,6 +2,7 @@ import json
 import tkinter as tk
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
+from idlelib.tooltip import Hovertip
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -10,10 +11,18 @@ from matplotlib.lines import Line2D
 
 from cursors import *
 from traces import *
+from analysis import plot_earthquake_location, plot_station_times_on_map
 
+import matplotlib as mpl
+
+mpl.rcParams["savefig.directory"] = "../results/plots"
 my_font = ('Helvetica', 24)
 color_map = get_cmap('rainbow')
 time_shift_ylim = 10
+# remove unneeded tool items
+NavigationToolbar2Tk.toolitems = [t for t in NavigationToolbar2Tk.toolitems if
+                                  t[0] not in (None, 'Pan', 'Subplots')]
+hover_delay = 100
 
 
 class Application(tk.Frame):
@@ -21,12 +30,16 @@ class Application(tk.Frame):
         super().__init__(background=background, master=master)
         self.dir_path = None  # the directory that stores SAC files
 
+        self.event_locs = np.empty(0)
         self.n_stations = None
         self.station_names = np.empty(0)
+        self.station_locs = np.empty(0)
         self.distances = np.empty(0)
         self.dist2st = {}  # map distance to station number
         self.sort_indices = np.empty(0)
         self.distances_sorted = np.empty(0)
+        self.distance_contours = None
+        self.travel_times = np.empty(0)
         self.time_shifts = np.empty(0)
         self.time_shift_errs = np.empty(0)
         self.colors = np.empty(0)
@@ -38,6 +51,7 @@ class Application(tk.Frame):
         self.curr_station = 0  # keep track of the current station
 
         # initialize frames
+        self.fr_top = None
         self.fr_btm_left = None
         self.fr_btm_left_top = None
         self.fr_btm_left_btm = None
@@ -71,42 +85,27 @@ class Application(tk.Frame):
         self.callback_id4 = None
         self.toolbar2 = None
 
-        # initialize dictionary for storing metadata
+        # initialize the dictionary for storing metadata
         self.station_picks = {}  # dictionary to store picks and quality
 
         self.create_frames()
 
     def create_frames(self):
         # top frame
-        fr_top = tk.Frame(master=self)
-        fr_top.grid(row=0, column=0)
-        btn_load = tk.Button(highlightbackground='white', master=fr_top, text="Load Event Data",
+        self.fr_top = tk.Frame(master=self)
+        self.fr_top.grid(row=0, column=0, columnspan=2, sticky='w')
+        # create button
+        btn_load = tk.Button(highlightbackground='white', master=self.fr_top, text="Load Data",
                              command=self.load_event_data)
-        btn_prev = tk.Button(highlightbackground='white', master=fr_top, text="\N{LEFTWARDS BLACK ARROW}",
-                             command=self.load_prev_station_data)
-        btn_next = tk.Button(highlightbackground='white', master=fr_top, text="\N{RIGHTWARDS BLACK ARROW}",
-                             command=self.load_next_station_data)
-        btn_last = tk.Button(highlightbackground='white', master=fr_top, text="\N{UPWARDS BLACK ARROW}",
-                             command=self.load_last_station_data)
-        btn_delete = tk.Button(highlightbackground='white', master=fr_top, text="\N{CROSS MARK}",
-                               command=self.delete_pick)
-        btn_save = tk.Button(highlightbackground='white', master=fr_top, text="\N{FLOPPY DISK}",
-                             command=self.save_station_pick)
+
+        # add tool tip
+        Hovertip(btn_load, "Load waveform data from an existing directory", hover_delay=hover_delay)
 
         # change font
         btn_load.config(font=my_font)
-        btn_prev.config(font=my_font)
-        btn_next.config(font=my_font)
-        btn_last.config(font=my_font)
-        btn_delete.config(font=my_font)
-        btn_save.config(font=my_font)
 
+        # add button
         btn_load.grid(row=0, column=0)
-        btn_prev.grid(row=0, column=1)
-        btn_next.grid(row=0, column=2)
-        btn_last.grid(row=0, column=3)
-        btn_delete.grid(row=0, column=4)
-        btn_save.grid(row=0, column=5)
 
         # bottom left frame
         self.fr_btm_left = tk.Frame(background='white', master=self)
@@ -152,12 +151,27 @@ class Application(tk.Frame):
         self.fr_btm_right_btm.grid(row=2, column=0)
 
     def load_event_data(self):
-        self.dir_path = askdirectory()
+        tmp_path = self.dir_path
+        if tmp_path is not None:  # existing event in process
+            # save the current station picks
+            self.save_pick()
+            # save the picks at all stations to json
+            self.save_station_picks()
+
+            # reset the current station number
+            self.curr_station = 0
+
+            # reset the dictionary for storing metadata
+            self.station_picks = {}  # dictionary to store picks and quality
+
+        self.dir_path = askdirectory(initialdir="../data/hinet")
         if not self.dir_path:
             return
+
         # preprocess event data
-        self.station_names, self.distances, _, self.sn_ratios, self.stream_long, self.stream_short = \
-            preprocess_traces(self.dir_path)
+        self.event_locs, self.distance_contours, \
+            self.station_names, self.station_locs, self.distances, self.travel_times, self.sn_ratios, \
+            self.stream_long, self.stream_short = preprocess_traces(self.dir_path)
         self.n_stations = len(self.station_names)
 
         # build distance to station number dictionary
@@ -179,9 +193,9 @@ class Application(tk.Frame):
             with open(pick_path, 'r') as fp:
                 self.station_picks = json.load(fp)
                 number = 0
-                for _, metadata in self.station_picks.items():
+                for name, metadata in self.station_picks.items():
                     number = metadata['number']
-                    picks = metadata['pick']
+                    picks = metadata['picks']
                     quality = metadata['quality']
                     if len(picks) == 3:
                         # update time shift
@@ -205,7 +219,64 @@ class Application(tk.Frame):
                 self.curr_station = number
 
         # load station data
-        self.load_station_data(num=self.curr_station)
+        # if there was no event loaded previously, no need to save the picks, either because there are no picks yet,
+        # or the picks are loaded from json, so they are already saved
+        # if there was event loaded previously and a new event is about to be loaded, no need to save the picks
+        # because otherwise the code will save the picks of the last processed station of the old event
+        # as the picks of the current station of the new event
+        self.load_station_data(num=self.curr_station, save=False)
+
+        # create tool buttons
+        if tmp_path is None:
+            self.create_tool_buttons()
+
+    def create_tool_buttons(self):
+        btn_prev = tk.Button(highlightbackground='white', master=self.fr_top, text="\N{LEFTWARDS BLACK ARROW}",
+                             command=self.load_prev_station_data)
+        btn_next = tk.Button(highlightbackground='white', master=self.fr_top, text="\N{RIGHTWARDS BLACK ARROW}",
+                             command=self.load_next_station_data)
+        btn_last = tk.Button(highlightbackground='white', master=self.fr_top, text="\N{UPWARDS BLACK ARROW}",
+                             command=self.load_last_station_data)
+        btn_delete = tk.Button(highlightbackground='white', master=self.fr_top, text="\N{CROSS MARK}",
+                               command=self.delete_pick)
+        btn_save = tk.Button(highlightbackground='white', master=self.fr_top, text="\N{FLOPPY DISK}",
+                             command=self.save_station_picks)
+        btn_earthquake = tk.Button(highlightbackground='white', master=self.fr_top, text="Plot Earthquake",
+                                   command=self.plot_earthquake)
+        btn_arrival = tk.Button(highlightbackground='white', master=self.fr_top, text="Plot Arrival",
+                                command=self.plot_arrival)
+        btn_residual = tk.Button(highlightbackground='white', master=self.fr_top, text="Plot Residual",
+                                 command=self.plot_residual)
+
+        # add tool tips
+        Hovertip(btn_prev, "Go to the previous station", hover_delay=hover_delay)
+        Hovertip(btn_next, "Go to the next station", hover_delay=hover_delay)
+        Hovertip(btn_last, "Go to the last processed station", hover_delay=hover_delay)
+        Hovertip(btn_delete, "Delete the picks", hover_delay=hover_delay)
+        Hovertip(btn_save, "Save the picks", hover_delay=hover_delay)
+        Hovertip(btn_earthquake, "Plot the earthquake location on a map", hover_delay=hover_delay)
+        Hovertip(btn_arrival, "Plot the arrival times on a map", hover_delay=hover_delay)
+        Hovertip(btn_residual, "Plot the residual times on a map", hover_delay=hover_delay)
+
+        # change font
+        btn_prev.config(font=my_font)
+        btn_next.config(font=my_font)
+        btn_last.config(font=my_font)
+        btn_delete.config(font=my_font)
+        btn_save.config(font=my_font)
+        btn_earthquake.config(font=my_font)
+        btn_arrival.config(font=my_font)
+        btn_residual.config(font=my_font)
+
+        # add buttons
+        btn_prev.grid(row=0, column=1)
+        btn_next.grid(row=0, column=2)
+        btn_last.grid(row=0, column=3)
+        btn_delete.grid(row=0, column=4)
+        btn_save.grid(row=0, column=5)
+        btn_earthquake.grid(row=0, column=6)
+        btn_arrival.grid(row=0, column=7)
+        btn_residual.grid(row=0, column=8)
 
     def show_station_cursor(self):
         if self.connect1:  # click to connect
@@ -216,11 +287,13 @@ class Application(tk.Frame):
             self.callback_id2 = self.station_canvas.mpl_connect('button_press_event',
                                                                 self.station_cursor.on_mouse_press)
             self.connect1 = False
+            Hovertip(self.btn_cursor1, "Deactivate cross cursor", hover_delay=hover_delay)
         else:  # click to disconnect
             self.btn_cursor1.config(foreground='grey')
             self.station_canvas.mpl_disconnect(self.callback_id1)
             self.station_canvas.mpl_disconnect(self.callback_id2)
             self.connect1 = True
+            Hovertip(self.btn_cursor1, "Activate cross cursor", hover_delay=hover_delay)
 
     def show_waveform_cursor(self):
         if self.connect2:  # click to connect
@@ -231,14 +304,19 @@ class Application(tk.Frame):
             self.callback_id4 = self.waveform_canvas.mpl_connect('button_press_event',
                                                                  self.waveform_cursor.on_mouse_press)
             self.connect2 = False
+            Hovertip(self.btn_cursor2, "Deactivate cross cursor", hover_delay=hover_delay)
         else:  # click to disconnect
             self.btn_cursor2.config(foreground='grey')
             self.waveform_canvas.mpl_disconnect(self.callback_id3)
             self.waveform_canvas.mpl_disconnect(self.callback_id4)
             self.connect2 = True
+            Hovertip(self.btn_cursor2, "Activate cross cursor", hover_delay=hover_delay)
 
-    def load_station_data(self, num):
-        load = self.save_pick()
+    def load_station_data(self, num, save=True):
+        if save:
+            load = self.save_pick()
+        else:
+            load = True
         if load:
             # update the current station
             self.curr_station = num
@@ -256,6 +334,9 @@ class Application(tk.Frame):
                 self.option_menu.destroy()
             if self.btn_cursor1:
                 self.btn_cursor1.destroy()
+            if self.toolbar1:
+                for item in self.toolbar1.winfo_children():
+                    item.destroy()
             if self.waveform_canvas:
                 self.waveform_canvas.get_tk_widget().destroy()
             if self.btn_cursor2:
@@ -263,7 +344,7 @@ class Application(tk.Frame):
             if self.toolbar2:
                 for item in self.toolbar2.winfo_children():
                     item.destroy()
-                pass
+                # pass
             plt.close('all')
 
             # update time shift plot
@@ -272,23 +353,37 @@ class Application(tk.Frame):
             # show station information
             # station_info = "station name: " + self.station_names[num] + "   distance: " + \
             #                str(np.around(self.distances[num], 2)) + "\N{DEGREE SIGN}"
-            station_info = "station name: " + self.station_names[num]
-            self.lbl_station = tk.Label(background='white', text=station_info, master=self.fr_btm_right_top)
+            station_info = "station name: " + self.station_names[num] + "   " + str(num + 1) + "/" + str(self.n_stations)
+            self.lbl_station = tk.Label(background='white', foreground='blue', text=station_info, master=self.fr_btm_right_top)
             self.lbl_station.configure(font=my_font)
             self.lbl_station.grid(row=0, column=0)
 
             # show quality menu
-            quality_scores = ["Select Quality", "5", "4", "3", "2", "1"]
+            quality_scores = ["Select Quality", "5 (highest)", "4 (high)", "3 (medium)", "2 (low)", "1 (lowest)"]
+            # quality_scores = ["Select Quality", "5", "4", "3", "2", "1"]
             self.quality_score = tk.StringVar(master=self.fr_btm_right_top)
             station_name = self.station_names[self.curr_station]
             # show quality if exists
             if station_name in self.station_picks:
-                self.quality_score.set(self.station_picks[station_name]['quality'])
+                qs = self.station_picks[station_name]['quality']
+                if qs == "5":
+                    postfix = " (highest)"
+                elif qs == "4":
+                    postfix = " (high)"
+                elif qs == "3":
+                    postfix = " (medium)"
+                elif qs == "2":
+                    postfix = " (low)"
+                elif qs == "1":
+                    postfix = " (lowest)"
+                else:
+                    raise Exception("Invalid quality score")
+                self.quality_score.set(qs + postfix)
             else:
                 self.quality_score.set("Select Quality")
             self.option_menu = tk.OptionMenu(self.fr_btm_right_top, self.quality_score, *quality_scores)
             # TODO: change border color
-            self.option_menu.config(font=my_font)
+            self.option_menu.config(font=my_font, width=10, bg='white')
             self.option_menu.grid(row=0, column=1)
 
             # plot waveforms
@@ -303,6 +398,7 @@ class Application(tk.Frame):
             # plot_traces(self.stream_long[num], ax01)
             plot_record_section(self.stream_short, self.distances, num, self.sn_ratios, ax1, ax2)
             self.waveform_canvas = FigureCanvasTkAgg(fig, master=self.fr_btm_right_ctr)  # A tk.DrawingArea.
+            self.waveform_canvas.get_default_filename = lambda: os.path.basename(self.dir_path) + "_waveform_" + station_name[-4:] + ".png"
             self.waveform_canvas.draw()
             self.waveform_canvas.get_tk_widget().grid(row=0)
 
@@ -310,20 +406,18 @@ class Application(tk.Frame):
             self.waveform_cursor = WaveformCursor(self.waveform_ax, self.waveform_line)
             # assign and plot picks if exists
             if station_name in self.station_picks:
-                picks = self.station_picks[station_name]['pick']
+                picks = self.station_picks[station_name]['picks']
                 self.waveform_cursor.picks = picks
                 for pick in picks:
-                    vline = self.waveform_ax.axvline(x=pick, color='tab:orange', lw=0.8, ls='--')
+                    vline = self.waveform_ax.axvline(x=pick, color='m', lw=0.8, ls='-')
                     self.waveform_cursor.vlines.append(vline)
 
             # add tool bar
             self.btn_cursor2 = tk.Button(highlightbackground='white', foreground='grey', master=self.fr_btm_right_btm,
                                          text="\N{OPEN CENTRE CROSS}", command=self.show_waveform_cursor)
+            Hovertip(self.btn_cursor2, "Activate cross cursor", hover_delay=hover_delay)
             self.btn_cursor2.config(font=my_font)
             self.btn_cursor2.grid(row=0, column=0, sticky='ew')
-            # remove unneeded tool items
-            NavigationToolbar2Tk.toolitems = [t for t in NavigationToolbar2Tk.toolitems if
-                                              t[0] not in (None, 'Pan', 'Subplots', 'Save')]
             self.toolbar2 = NavigationToolbar2Tk(self.waveform_canvas, self.fr_btm_right_btm, pack_toolbar=False)
             # change toolbar color
             self.toolbar2.config(background='white')
@@ -357,18 +451,18 @@ class Application(tk.Frame):
         # plot with x values sorted
         plot_line, _, bar_lines = ax.errorbar(x=self.distances_sorted, y=self.time_shifts[self.sort_indices],
                                               yerr=self.time_shift_errs[:, self.sort_indices],
-                                              ls='none', elinewidth=0.8)
+                                              ls='none', elinewidth=0.8, alpha=0.8, zorder=10)
         bar_lines[0].set_color(self.colors[self.sort_indices])
         # plot with highest quality on the top and lowest at the bottom
         for i in range(6):
             distances_selected = self.distances[self.orders == i]
             time_shifts_selected = self.time_shifts[self.orders == i]
             colors_selected = self.colors[self.orders == i]
-            ax.scatter(distances_selected, time_shifts_selected, s=5, c=colors_selected)
+            ax.scatter(distances_selected, time_shifts_selected, s=20, c=colors_selected, edgecolors='none', alpha=0.8, zorder=11)
         ax.set_xlim(np.floor(self.distances_sorted[0]), np.ceil(self.distances_sorted[-1]))
         ax.set_ylim([-time_shift_ylim, time_shift_ylim])
         ax.set_xlabel(r"Distance ($^\circ$)")
-        ax.set_ylabel("Time (s)")
+        ax.set_ylabel("Residual time (s)")
         # add legend
         legend_elements = [Line2D([0], [0], ls='none', marker='o', markersize=5,
                                   markerfacecolor=(0.5, 0.5, 0.5, 1), markeredgecolor=(0.5, 0.5, 0.5, 1),
@@ -381,8 +475,9 @@ class Application(tk.Frame):
                   columnspacing=0., handletextpad=0.)
 
         self.station_canvas = FigureCanvasTkAgg(fig, master=self.fr_btm_left_top)  # A tk.DrawingArea.
+        self.station_canvas.get_default_filename = lambda: os.path.basename(self.dir_path) + "_residual_vs_distance.png"
         self.station_canvas.draw()
-        self.station_canvas.get_tk_widget().pack()
+        self.station_canvas.get_tk_widget().grid()
 
         # create cursor
         self.station_cursor = StationCursor(ax, plot_line, dist2st=self.dist2st, app=self)
@@ -390,11 +485,9 @@ class Application(tk.Frame):
         # add tool bar
         self.btn_cursor1 = tk.Button(highlightbackground='white', foreground='grey', master=self.fr_btm_left_btm,
                                      text="\N{OPEN CENTRE CROSS}", command=self.show_station_cursor)
+        Hovertip(self.btn_cursor1, "Activate cross cursor", hover_delay=hover_delay)
         self.btn_cursor1.config(font=my_font)
         self.btn_cursor1.grid(row=0, column=0, sticky='ew')
-        # remove unneeded tool items
-        NavigationToolbar2Tk.toolitems = [t for t in NavigationToolbar2Tk.toolitems if
-                                          t[0] not in (None, 'Pan', 'Subplots', 'Save')]
         self.toolbar1 = NavigationToolbar2Tk(self.station_canvas, self.fr_btm_left_btm, pack_toolbar=False)
         # change toolbar color
         self.toolbar1.config(background='white')
@@ -421,14 +514,22 @@ class Application(tk.Frame):
             picks = self.waveform_cursor.get_pick()
             n_picks = len(picks)
             station_name = self.station_names[self.curr_station]
-            quality_score = self.quality_score.get()
+            station_latitude = self.station_locs[self.curr_station][0]
+            station_longitude = self.station_locs[self.curr_station][1]
+            distance = self.distances[self.curr_station]
+            travel_time = self.travel_times[self.curr_station]
+            quality_score = self.quality_score.get()[0]
             load = False
             if (n_picks == 3 and quality_score in ['2', '3', '4', '5']) or (n_picks == 0 and quality_score == '1'):
                 picks_sorted = np.sort(picks)  # sort
                 # save to dictionary
                 self.station_picks[station_name] = {}
                 self.station_picks[station_name]['number'] = self.curr_station
-                self.station_picks[station_name]['pick'] = picks_sorted.tolist()
+                self.station_picks[station_name]['latitude'] = station_latitude
+                self.station_picks[station_name]['longitude'] = station_longitude
+                self.station_picks[station_name]['distance'] = distance
+                self.station_picks[station_name]['travel_time'] = travel_time
+                self.station_picks[station_name]['picks'] = picks_sorted.tolist()
                 self.station_picks[station_name]['quality'] = quality_score
                 if n_picks == 3:
                     # update time shift
@@ -449,9 +550,11 @@ class Application(tk.Frame):
                 # update order
                 self.orders[self.curr_station] = int(quality_score)
                 load = True
-            elif (n_picks == 3 and quality_score in ['Select Quality', '1']) or \
-                    (n_picks == 0 and quality_score in ['2', '3', '4', '5']):
+            elif n_picks == 3 and quality_score in ['Select Quality', '1']:  # select picks but no quality
                 msg = "A valid quality was not selected."
+                messagebox.showwarning(message=msg)
+            elif n_picks == 0 and quality_score in ['2', '3', '4', '5']:  # select quality but no picks
+                msg = "Picks were not selected."
                 messagebox.showwarning(message=msg)
             elif 0 < n_picks < 3:
                 msg = str(len(picks)) + " arrivals (< 3) were picked at " + station_name + "."
@@ -462,15 +565,106 @@ class Application(tk.Frame):
         else:
             return True
 
-    def save_station_pick(self):
+    def save_station_picks(self):
         with open('../results/picks/' + os.path.basename(self.dir_path) + '.json', 'w') as fp:
             json.dump(self.station_picks, fp, indent=4)
 
     def get_dir_path(self):
         return self.dir_path
 
-    def get_station_pick(self):
+    def get_station_picks(self):
         return self.station_picks
+
+    def plot_earthquake(self):
+        top = tk.Toplevel()
+
+        # set title
+        top.title("Earthquake")
+        # set position
+        top.geometry("+100+100")
+        # set size
+        top.rowconfigure(0, minsize=500, weight=1)
+        top.rowconfigure(1, minsize=50, weight=1)
+        top.columnconfigure(0, minsize=500, weight=1)
+
+        # plot map
+        fig = plt.figure(figsize=(5, 4), dpi=300)
+        event_lat = self.event_locs[0]
+        event_lon = self.event_locs[1]
+        station_lat_avg = np.mean([station_loc[0] for station_loc in self.station_locs])
+        station_lon_avg = np.mean([station_loc[1] for station_loc in self.station_locs])
+        plot_earthquake_location(station_lat_avg, station_lon_avg, event_lat, event_lon, fig)
+        map_canvas = FigureCanvasTkAgg(fig, master=top)
+        map_canvas.get_default_filename = lambda: os.path.basename(self.dir_path) + "_earthquake_location.png"
+        map_canvas.draw()
+        map_canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
+
+        # add toolbar
+        toolbar = NavigationToolbar2Tk(map_canvas, top, pack_toolbar=False)
+        # change toolbar color
+        toolbar.config(background='white')
+        for item in toolbar.winfo_children():
+            item.config(highlightbackground='white')  # for buttons
+            item.config(background='white')  # for labels
+        toolbar.grid(row=1, column=0, sticky='nsew')
+
+    def plot_arrival(self):
+        top = tk.Toplevel()
+
+        # set title
+        top.title("Arrival")
+        # set position
+        top.geometry("+100+100")
+        # set size
+        top.rowconfigure(0, minsize=500, weight=1)
+        top.rowconfigure(1, minsize=50, weight=1)
+        top.columnconfigure(0, minsize=500, weight=1)
+
+        # plot map
+        fig = plt.figure(figsize=(5, 4), dpi=300)
+        plot_station_times_on_map(self.station_picks, fig, plot_type='arrival')
+        map_canvas = FigureCanvasTkAgg(fig, master=top)
+        map_canvas.get_default_filename = lambda: os.path.basename(self.dir_path) + "_arrival_map.png"
+        map_canvas.draw()
+        map_canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
+
+        # add toolbar
+        toolbar = NavigationToolbar2Tk(map_canvas, top, pack_toolbar=False)
+        # change toolbar color
+        toolbar.config(background='white')
+        for item in toolbar.winfo_children():
+            item.config(highlightbackground='white')  # for buttons
+            item.config(background='white')  # for labels
+        toolbar.grid(row=1, column=0, sticky='nsew')
+
+    def plot_residual(self):
+        top = tk.Toplevel()
+
+        # set title
+        top.title("Residual")
+        # set position
+        top.geometry("+100+100")
+        # set size
+        top.rowconfigure(0, minsize=500, weight=1)
+        top.rowconfigure(1, minsize=50, weight=1)
+        top.columnconfigure(0, minsize=500, weight=1)
+
+        # plot map
+        fig = plt.figure(figsize=(5, 4), dpi=300)
+        plot_station_times_on_map(self.station_picks, fig, plot_type='residual')
+        map_canvas = FigureCanvasTkAgg(fig, master=top)
+        map_canvas.get_default_filename = lambda: os.path.basename(self.dir_path) + "_residual_map.png"
+        map_canvas.draw()
+        map_canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
+
+        # add toolbar
+        toolbar = NavigationToolbar2Tk(map_canvas, top, pack_toolbar=False)
+        # change toolbar color
+        toolbar.config(background='white')
+        for item in toolbar.winfo_children():
+            item.config(highlightbackground='white')  # for buttons
+            item.config(background='white')  # for labels
+        toolbar.grid(row=1, column=0, sticky='nsew')
 
 
 if __name__ == '__main__':
@@ -478,12 +672,18 @@ if __name__ == '__main__':
     root.title("Phase Picking")
     app = Application(background='white', master=root)
     # set minimum size for rows and columns
-    app.rowconfigure(0, minsize=50, weight=1)
-    app.rowconfigure(1, minsize=700, weight=1)
+    app.rowconfigure(0, minsize=50, weight=1)  # tool buttons
+    app.rowconfigure(1, minsize=700, weight=1)  # everything else
     app.columnconfigure(0, minsize=500, weight=1)
     app.columnconfigure(1, minsize=1300, weight=1)
-    app.pack()
+    app.grid()
     app.mainloop()
     # save to json
     with open('../results/picks/' + os.path.basename(app.get_dir_path()) + '.json', 'w') as fp:
-        json.dump(app.get_station_pick(), fp, indent=4)
+        json.dump(app.get_station_picks(), fp, indent=4)
+
+
+# TODO: consider use a pop-up window to explain the quality scale
+# TODO: make option menu box larger
+# TODO: go to the last station how to implement
+# TODO: progress bar

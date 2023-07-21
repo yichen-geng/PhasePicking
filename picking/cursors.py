@@ -8,10 +8,10 @@ class WaveformCursor:
 
     For simplicity, this assumes that *x* values of the data are sorted.
     """
-    def __init__(self, ax, line, color='k'):
+    def __init__(self, ax, line, color='c'):
         self.ax = ax
-        self.horizontal_line = ax.axhline(color=color, lw=0.8, ls='--')
-        self.vertical_line = ax.axvline(color=color, lw=0.8, ls='--')  # default x=0
+        self.horizontal_line = ax.axhline(color=color, lw=0.8, ls='-')
+        self.vertical_line = ax.axvline(color=color, lw=0.8, ls='-')  # default x=0
         self.horizontal_line.set_visible(False)
         self.vertical_line.set_visible(False)
         self.x, self.y = line.get_data()
@@ -51,7 +51,7 @@ class WaveformCursor:
 
     def on_mouse_press(self, event):
         if event.inaxes == self.ax and len(self.picks) < 3:
-            vline = self.ax.axvline(x=self.x[self._last_index], color='tab:orange', lw=0.8, ls='--')
+            vline = self.ax.axvline(x=self.x[self._last_index], color='m', lw=0.8, ls='-')
             # store the vertical line and the x location of the pick
             self.vlines.append(vline)
             self.picks.append(self.x[self._last_index])
@@ -76,8 +76,10 @@ class StationCursor:
     """
     def __init__(self, ax, line, dist2st, app, color='k'):
         self.ax = ax
-        self.horizontal_line = ax.axhline(color=color, lw=0.8, ls='--')
-        self.vertical_line = ax.axvline(color=color, lw=0.8, ls='--')
+        self.horizontal_line = ax.axhline(color=color, lw=0.8, ls='-', zorder=12)
+        self.vertical_line = ax.axvline(color=color, lw=0.8, ls='-', zorder=12)
+        self.horizontal_line.set_visible(False)
+        self.vertical_line.set_visible(False)
         self.x, self.y = line.get_data()
         self.dist2st = dist2st
         self.app = app
