@@ -60,6 +60,8 @@ class Application(tk.Frame):
         self.fr_btm_right_ctr = None
         self.fr_btm_right_btm = None
 
+        self.btn_load = None
+
         # for station time shift plot
         self.station_canvas = None
         self.btn_cursor1 = None
@@ -92,67 +94,72 @@ class Application(tk.Frame):
 
     def create_frames(self):
         # top frame
-        self.fr_top = tk.Frame(master=self)
-        self.fr_top.grid(row=0, column=0, columnspan=2, sticky='w')
+        self.fr_top = tk.Frame(background='white', master=self)
+        self.fr_top.grid(row=0, column=0, columnspan=2, sticky='nsew')
         # create button
-        btn_load = tk.Button(highlightbackground='white', master=self.fr_top, text="Load Data",
-                             command=self.load_event_data)
+        self.btn_load = tk.Button(highlightbackground='white', master=self.fr_top, text="Load Data", command=self.load_event_data)
 
         # add tool tip
-        Hovertip(btn_load, "Load waveform data from an existing directory", hover_delay=hover_delay)
+        Hovertip(self.btn_load, "Load waveform data from an existing directory", hover_delay=hover_delay)
 
         # change font
-        btn_load.config(font=my_font)
+        self.btn_load.config(font=my_font)
 
         # add button
-        btn_load.grid(row=0, column=0)
+        self.btn_load.grid(row=0, column=0)
 
         # bottom left frame
         self.fr_btm_left = tk.Frame(background='white', master=self)
-        self.fr_btm_left.rowconfigure(0, minsize=650)  # scatter plot
-        self.fr_btm_left.rowconfigure(1, minsize=50)  # zoom in/out buttons
-        self.fr_btm_left.columnconfigure(0, minsize=500)
-        self.fr_btm_left.grid(row=1, column=0)
+        self.fr_btm_left.rowconfigure(0, minsize=frame_height/20*19, weight=1)  # scatter plot
+        self.fr_btm_left.rowconfigure(1, minsize=frame_height/20, weight=1)  # zoom in/out buttons
+        self.fr_btm_left.columnconfigure(0, weight=1)
+        self.fr_btm_left.grid(row=1, column=0, sticky='nsew')
 
         # bottom left top frame
         self.fr_btm_left_top = tk.Frame(background='white', master=self.fr_btm_left)
-        self.fr_btm_left_top.grid(row=0, column=0)
+        self.fr_btm_left_top.rowconfigure(0, weight=1)
+        self.fr_btm_left_top.columnconfigure(0, weight=1)
+        self.fr_btm_left_top.grid(row=0, column=0, sticky='nsew')
 
         # bottom left bottom frame
         self.fr_btm_left_btm = tk.Frame(background='white', master=self.fr_btm_left)
-        self.fr_btm_left_btm.columnconfigure(0, minsize=50)
-        # set to a minimum of 350 pixels to allow text to appear without expanding the column
-        self.fr_btm_left_btm.columnconfigure(1, minsize=350)
-        self.fr_btm_left_btm.grid(row=1, column=0)
+        self.fr_btm_left_btm.rowconfigure(0, weight=1)
+        self.fr_btm_left_btm.columnconfigure(0, weight=1)
+        # set to a minimum number of pixels to allow text to appear without expanding the column
+        self.fr_btm_left_btm.columnconfigure(1, minsize=app_width/5, weight=1)
+        self.fr_btm_left_btm.grid(row=1, column=0, sticky='nsew')
 
         # bottom right frame
         self.fr_btm_right = tk.Frame(background='white', master=self)
-        self.fr_btm_right.rowconfigure(0, minsize=50)  # station info + quality menu
-        self.fr_btm_right.rowconfigure(1, minsize=600)  # waveform plots
-        self.fr_btm_right.rowconfigure(2, minsize=50)  # zoom in/out buttons
-        self.fr_btm_right.columnconfigure(0, minsize=1300)
-        self.fr_btm_right.grid(row=1, column=1)
+        self.fr_btm_right.rowconfigure(0, minsize=frame_height/20, weight=1)  # station info + quality menu
+        self.fr_btm_right.rowconfigure(1, minsize=frame_height/20*18, weight=1)  # waveform plots
+        self.fr_btm_right.rowconfigure(2, minsize=frame_height/20, weight=1)  # zoom in/out buttons
+        self.fr_btm_right.columnconfigure(0, weight=1)
+        self.fr_btm_right.grid(row=1, column=1, sticky='nsew')
 
         # bottom right top frame
         self.fr_btm_right_top = tk.Frame(background='white', master=self.fr_btm_right)
-        self.fr_btm_right_top.columnconfigure(0, minsize=650)
-        self.fr_btm_right_top.columnconfigure(1, minsize=650)
-        self.fr_btm_right_top.grid(row=0, column=0)
+        self.fr_btm_right_top.rowconfigure(0, weight=1)
+        self.fr_btm_right_top.columnconfigure(0, weight=1)
+        self.fr_btm_right_top.columnconfigure(1, weight=1)
+        self.fr_btm_right_top.grid(row=0, column=0, sticky='nsew')
 
         # bottom right middle frame
         self.fr_btm_right_ctr = tk.Frame(background='white', master=self.fr_btm_right)
-        self.fr_btm_right_ctr.grid(row=1, column=0)
+        self.fr_btm_right_ctr.rowconfigure(0, weight=1)
+        self.fr_btm_right_ctr.columnconfigure(0, weight=1)
+        self.fr_btm_right_ctr.grid(row=1, column=0, sticky='nsew')
 
         # bottom right bottom frame
         self.fr_btm_right_btm = tk.Frame(background='white', master=self.fr_btm_right)
-        self.fr_btm_right_btm.columnconfigure(0, minsize=50)
-        # set to a minimum of 300 pixels to allow text to appear without expanding the column
-        self.fr_btm_right_btm.columnconfigure(1, minsize=350)
-        self.fr_btm_right_btm.grid(row=2, column=0)
+        self.fr_btm_right_btm.rowconfigure(0, weight=1)
+        self.fr_btm_right_btm.columnconfigure(0, weight=1)
+        # set to a minimum number of pixels to allow text to appear without expanding the column
+        self.fr_btm_right_btm.columnconfigure(1, minsize=app_width/5, weight=1)
+        self.fr_btm_right_btm.grid(row=2, column=0, sticky='nsew')
 
     def load_event_data(self):
-        tmp_path = self.dir_path
-        if tmp_path is not None:  # existing event in process
+        if self.dir_path is not None:  # existing event in process
             # save the current station picks
             self.save_pick()
             # save the picks at all stations to json
@@ -168,10 +175,23 @@ class Application(tk.Frame):
         if not self.dir_path:
             return
 
+        # open a popup window to show the progress bar
+        top = tk.Toplevel(background='white')
+        x = root.winfo_x()
+        y = root.winfo_y()
+        top.geometry("%dx%d+%d+%d" % (app_width, app_height, x, y))
+        text = "Loading Data... Please Wait"
+        load_text = tk.Label(text=text, background='white', master=top)
+        load_text.configure(font=('Helvetica', 48))
+        load_text.place(relx=0.5, rely=0.5, anchor='center')
+        # make the load button invisible
+        self.btn_load.grid_remove()
+        root.wait_visibility(top)
         # preprocess event data
         self.event_locs, self.distance_contours, \
             self.station_names, self.station_locs, self.distances, self.travel_times, self.sn_ratios, \
             self.stream_long, self.stream_short = preprocess_traces(self.dir_path)
+        top.destroy()
         self.n_stations = len(self.station_names)
 
         # build distance to station number dictionary
@@ -226,9 +246,7 @@ class Application(tk.Frame):
         # as the picks of the current station of the new event
         self.load_station_data(num=self.curr_station, save=False)
 
-        # create tool buttons
-        if tmp_path is None:
-            self.create_tool_buttons()
+        self.create_tool_buttons()
 
     def create_tool_buttons(self):
         btn_prev = tk.Button(highlightbackground='white', master=self.fr_top, text="\N{LEFTWARDS BLACK ARROW}",
@@ -269,6 +287,7 @@ class Application(tk.Frame):
         btn_residual.config(font=my_font)
 
         # add buttons
+        self.btn_load.grid(row=0, column=0)
         btn_prev.grid(row=0, column=1)
         btn_next.grid(row=0, column=2)
         btn_last.grid(row=0, column=3)
@@ -382,13 +401,12 @@ class Application(tk.Frame):
             else:
                 self.quality_score.set("Select Quality")
             self.option_menu = tk.OptionMenu(self.fr_btm_right_top, self.quality_score, *quality_scores)
-            # TODO: change border color
             self.option_menu.config(font=my_font, width=10, bg='white')
             self.option_menu.grid(row=0, column=1)
 
             # plot waveforms
-            fig = plt.figure(constrained_layout=True, figsize=(8, 4), dpi=150)
-            gs = fig.add_gridspec(3, 2, width_ratios=[2, 3], height_ratios=[2, 1, 2])
+            fig = plt.figure(constrained_layout=True, figsize=(6, 4), dpi=150)
+            gs = fig.add_gridspec(3, 2, width_ratios=[2, 3], height_ratios=[2, 0.5, 1.5])
             self.waveform_ax = fig.add_subplot(gs[0, :])
             # ax01 = fig.add_subplot(gs[0, 1])
             ax1 = fig.add_subplot(gs[1, :])
@@ -400,7 +418,7 @@ class Application(tk.Frame):
             self.waveform_canvas = FigureCanvasTkAgg(fig, master=self.fr_btm_right_ctr)  # A tk.DrawingArea.
             self.waveform_canvas.get_default_filename = lambda: os.path.basename(self.dir_path) + "_waveform_" + station_name[-4:] + ".png"
             self.waveform_canvas.draw()
-            self.waveform_canvas.get_tk_widget().grid(row=0)
+            self.waveform_canvas.get_tk_widget().grid(row=0, sticky='nsew')
 
             # create cursor
             self.waveform_cursor = WaveformCursor(self.waveform_ax, self.waveform_line)
@@ -413,18 +431,18 @@ class Application(tk.Frame):
                     self.waveform_cursor.vlines.append(vline)
 
             # add tool bar
-            self.btn_cursor2 = tk.Button(highlightbackground='white', foreground='grey', master=self.fr_btm_right_btm,
+            self.btn_cursor2 = tk.Button(highlightbackground='white', foreground='grey', width=10, master=self.fr_btm_right_btm,
                                          text="\N{OPEN CENTRE CROSS}", command=self.show_waveform_cursor)
             Hovertip(self.btn_cursor2, "Activate cross cursor", hover_delay=hover_delay)
             self.btn_cursor2.config(font=my_font)
-            self.btn_cursor2.grid(row=0, column=0, sticky='ew')
+            self.btn_cursor2.grid(row=0, column=0, sticky='w')
             self.toolbar2 = NavigationToolbar2Tk(self.waveform_canvas, self.fr_btm_right_btm, pack_toolbar=False)
             # change toolbar color
             self.toolbar2.config(background='white')
             for item in self.toolbar2.winfo_children():
                 item.config(highlightbackground='white')  # for buttons
                 item.config(background='white')  # for labels
-            self.toolbar2.grid(row=0, column=1, sticky='ew')
+            self.toolbar2.grid(row=0, column=1, sticky='nsew')
 
     def load_prev_station_data(self):
         curr_station = self.curr_station
@@ -445,7 +463,7 @@ class Application(tk.Frame):
         self.load_station_data(num=curr_station)
 
     def update_time_shift_plot(self):
-        fig = plt.figure(constrained_layout=True, figsize=(3.5, 3.5), dpi=150)
+        fig = plt.figure(constrained_layout=True, figsize=(3, 3), dpi=150)
         gs = fig.add_gridspec(1, 1)
         ax = fig.add_subplot(gs[0, 0])
         # plot with x values sorted
@@ -471,30 +489,30 @@ class Application(tk.Frame):
             legend_elements.append(Line2D([0], [0], ls='none', marker='o', markersize=5,
                                           markerfacecolor=color_map(i / 5), markeredgecolor=color_map(i / 5),
                                           label=str(i)))
-        ax.legend(handles=legend_elements[::-1], fontsize=10, bbox_to_anchor=(0, 1., 1, 0.15), loc='upper left', ncol=6,
+        ax.legend(handles=legend_elements[::-1], fontsize=10, bbox_to_anchor=(0, 1., 1., 0.15), loc='upper left', ncol=6,
                   columnspacing=0., handletextpad=0.)
 
         self.station_canvas = FigureCanvasTkAgg(fig, master=self.fr_btm_left_top)  # A tk.DrawingArea.
         self.station_canvas.get_default_filename = lambda: os.path.basename(self.dir_path) + "_residual_vs_distance.png"
         self.station_canvas.draw()
-        self.station_canvas.get_tk_widget().grid()
+        self.station_canvas.get_tk_widget().grid(sticky='nsew')
 
         # create cursor
         self.station_cursor = StationCursor(ax, plot_line, dist2st=self.dist2st, app=self)
 
         # add tool bar
-        self.btn_cursor1 = tk.Button(highlightbackground='white', foreground='grey', master=self.fr_btm_left_btm,
+        self.btn_cursor1 = tk.Button(highlightbackground='white', foreground='grey', width=10, master=self.fr_btm_left_btm,
                                      text="\N{OPEN CENTRE CROSS}", command=self.show_station_cursor)
         Hovertip(self.btn_cursor1, "Activate cross cursor", hover_delay=hover_delay)
         self.btn_cursor1.config(font=my_font)
-        self.btn_cursor1.grid(row=0, column=0, sticky='ew')
+        self.btn_cursor1.grid(row=0, column=0, sticky='w')
         self.toolbar1 = NavigationToolbar2Tk(self.station_canvas, self.fr_btm_left_btm, pack_toolbar=False)
         # change toolbar color
         self.toolbar1.config(background='white')
         for item in self.toolbar1.winfo_children():
             item.config(highlightbackground='white')  # for buttons
             item.config(background='white')  # for labels
-        self.toolbar1.grid(row=0, column=1, sticky='ew')
+        self.toolbar1.grid(row=0, column=1, sticky='nsew')
 
     def delete_pick(self):
         # remove picks associated with the cursor
@@ -554,13 +572,18 @@ class Application(tk.Frame):
                 msg = "A valid quality was not selected."
                 messagebox.showwarning(message=msg)
             elif n_picks == 0 and quality_score in ['2', '3', '4', '5']:  # select quality but no picks
-                msg = "Picks were not selected."
+                msg = "No picks were not selected."
                 messagebox.showwarning(message=msg)
             elif 0 < n_picks < 3:
                 msg = str(len(picks)) + " arrivals (< 3) were picked at " + station_name + "."
                 messagebox.showwarning(message=msg)
-            else:  # skip if no pick and no quality selected
-                load = True
+            else:  # if no pick and no quality selected, popup a message box
+                msg = "No picks and quality were selected. Do you wish to continue?"
+                msg_box = tk.messagebox.askquestion(message=msg)
+                if msg_box == "yes":
+                    load = True
+                else:
+                    load = False
             return load
         else:
             return True
@@ -580,8 +603,8 @@ class Application(tk.Frame):
 
         # set title
         top.title("Earthquake")
-        # set position
-        top.geometry("+100+100")
+        # # set position
+        # top.geometry("+100+100")
         # set size
         top.rowconfigure(0, minsize=500, weight=1)
         top.rowconfigure(1, minsize=50, weight=1)
@@ -613,8 +636,8 @@ class Application(tk.Frame):
 
         # set title
         top.title("Arrival")
-        # set position
-        top.geometry("+100+100")
+        # # set position
+        # top.geometry("+100+100")
         # set size
         top.rowconfigure(0, minsize=500, weight=1)
         top.rowconfigure(1, minsize=50, weight=1)
@@ -642,8 +665,8 @@ class Application(tk.Frame):
 
         # set title
         top.title("Residual")
-        # set position
-        top.geometry("+100+100")
+        # # set position
+        # top.geometry("+100+100")
         # set size
         top.rowconfigure(0, minsize=500, weight=1)
         top.rowconfigure(1, minsize=50, weight=1)
@@ -670,20 +693,35 @@ class Application(tk.Frame):
 if __name__ == '__main__':
     root = tk.Tk()
     root.title("Phase Picking")
+    root.rowconfigure(0, weight=1)
+    root.columnconfigure(0, weight=1)
+    # get screen dimension
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    # remove some pixels
+    cut = 20
+    screen_height -= cut
+    screen_width -= cut
+    # set app dimension
+    # app_height = screen_height / 5 * 4
+    app_width = screen_width
+    app_height = app_width * 0.42
+    frame_height = app_height / 20 * 19
     app = Application(background='white', master=root)
     # set minimum size for rows and columns
-    app.rowconfigure(0, minsize=50, weight=1)  # tool buttons
-    app.rowconfigure(1, minsize=700, weight=1)  # everything else
-    app.columnconfigure(0, minsize=500, weight=1)
-    app.columnconfigure(1, minsize=1300, weight=1)
-    app.grid()
+    app.rowconfigure(0, minsize=app_height/20, weight=1)  # tool buttons
+    app.rowconfigure(1, minsize=app_height/20*19, weight=1)  # everything else
+    app.columnconfigure(0, minsize=app_width/3, weight=1)
+    app.columnconfigure(1, minsize=app_width/3*2, weight=1)
+    app.grid(sticky='nsew')
     app.mainloop()
-    # save to json
-    with open('../results/picks/' + os.path.basename(app.get_dir_path()) + '.json', 'w') as fp:
-        json.dump(app.get_station_picks(), fp, indent=4)
+    # save station_picks to json if it is not empty
+    station_picks = app.get_station_picks()
+    if station_picks:
+        with open('../results/picks/' + os.path.basename(app.get_dir_path()) + '.json', 'w') as fp:
+            json.dump(app.get_station_picks(), fp, indent=4)
 
 
 # TODO: consider use a pop-up window to explain the quality scale
 # TODO: make option menu box larger
 # TODO: go to the last station how to implement
-# TODO: progress bar

@@ -54,7 +54,7 @@ def open_Toplevel1():
 
     # specify size
     # top.aspect(500, 550, 500, 550)
-    top.aspect(10, 11, 10, 11)  # TODO
+    # top.aspect(10, 11, 10, 11)  # TODO
     top.geometry("+100+100")
     top.rowconfigure(0, minsize=500, weight=1)
     top.rowconfigure(1, minsize=50, weight=1)

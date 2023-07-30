@@ -12,7 +12,7 @@ from obspy.taup import TauPyModel
 from basic_functions import calculate_distaz, calculate_signal_to_noise_ratio
 
 # define global variables
-half_win_len = 20
+half_win_len = 30
 decimation = True
 if decimation:
     sampling_rate = 10
@@ -214,6 +214,7 @@ def select_traces(distances, sn_ratios, n_bins=200):
     Select a number of traces with the highest signal-to-noise ratios.
     :param distances: distances between the event and stations
     :param sn_ratios: signal-to-noise ratios of the phase
+    :param n_bins: # TODO
     :return: an array of trace indices
     """
     # divide the whole distance range into n bins
@@ -259,15 +260,15 @@ def plot_record_section(stream_data, distances, station_idx, sn_ratios, ax1, ax2
     for idx_max in indices_max:
         ax2.plot(distances[idx_max] - stream_data[idx_max] / max(abs(stream_data[idx_max])) * scale,
                  np.arange(-half_win_len * sampling_rate, half_win_len * sampling_rate + 1) / sampling_rate,
-                 color='grey', linewidth=0.8)
+                 color='grey', linewidth=0.7)
     trace_data = stream_data[station_idx]
 
     # flip the trace for easier comparison with waveform plots
     ax2.plot(distances[station_idx] - trace_data / max(abs(trace_data)) * scale,
              np.arange(-half_win_len * sampling_rate, half_win_len * sampling_rate + 1) / sampling_rate, color='r',
-             linewidth=0.8)
-    # plot reference time
-    ax2.axhline(y=0, ls='-', color='grey', linewidth=0.5)
+             linewidth=0.7)
+    # # plot reference time
+    # ax2.axhline(y=0, ls='-', color='grey', linewidth=0.5)
     ax2.set_xticks(np.arange(int(np.around(min_distance / 5) * 5), int(np.around(max_distance / 5) * 5) + 5, 5))
     ax2.set_xticklabels(
         np.arange(int(np.around(min_distance / 5) * 5), int(np.around(max_distance / 5) * 5) + 5, 5))
