@@ -492,7 +492,7 @@ class Application(tk.Frame):
             curr_station = int(np.where(self.station_names == curr_station_name)[0][0])
             self.load_station_data(num=curr_station)
         else:
-            msg = "Station name does not exist. Double check the name entered."
+            msg = "Station name does not exist. Double check the spelling."
             messagebox.showwarning(message=msg)
             return
 
