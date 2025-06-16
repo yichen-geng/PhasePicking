@@ -1,7 +1,10 @@
 .idea/*
 __pycache__/
 data/hinet/*
-results/picks/*
-results/plots/*
+results/*
 test/*
 examples/*
+.DS_Store
+data/.DS_Store
+data/metadata/.DS_Store
+picking/.DS_Store

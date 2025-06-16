@@ -271,7 +271,8 @@ class Application(tk.Frame):
                                  command=self.plot_residual)
         self.txt_input = tk.Text(highlightbackground='black', master=self.fr_top,
                                  height=1, width=10)
-        btn_go = tk.Button(highlightbackground='white', master=self.fr_top, text="Go", command=self.load_input_station_data)
+        btn_go = tk.Button(highlightbackground='white', master=self.fr_top, text="Go",
+                           command=self.load_input_station_data)
 
         # add tool tips
         MyTooltip(btn_prev, "Go to the previous station", hover_delay=hover_delay)

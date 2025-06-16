@@ -39,8 +39,8 @@ class WaveformCursor:
             x = self.x[index]
             y = self.y[index]
             # update the line positions
-            self.horizontal_line.set_ydata(y)
-            self.vertical_line.set_xdata(x)
+            self.horizontal_line.set_ydata([y])
+            self.vertical_line.set_xdata([x])
             # self.text.set_text('x=%1.2f, y=%1.2f' % (x, y))
             self.ax.figure.canvas.draw()
         else:
@@ -110,8 +110,8 @@ class StationCursor:
             x = self.x[index]
             y = self.y[index]
             # update the line positions
-            self.horizontal_line.set_ydata(y)
-            self.vertical_line.set_xdata(x)
+            self.horizontal_line.set_ydata([y])
+            self.vertical_line.set_xdata([x])
             # self.text.set_text('x=%1.2f, y=%1.2f' % (x, y))
             self.ax.figure.canvas.draw()
 
