@@ -359,3 +359,25 @@ def calculate_weighted_mean_std(x, errs):
     weighted_mean = np.sum(weights * x) / np.sum(weights)
     std = 1 / np.sqrt(np.sum(weights))
     return weighted_mean, std
+
+
+def get_last_number(numbers):
+    """
+    Takes a list of numbers and returns the largest number in the smallest consecutive group
+    :param numbers: a list or array of numbers
+    :return: the largest number in the smallest consecutive group
+    """
+    # sort by ascending values
+    numbers = np.sort(numbers)
+
+    last_number = -1
+
+    for number in numbers:
+        if number == last_number + 1:
+            last_number = number
+        else:
+            break
+
+    last_number = int(last_number)  # convert from numpy.int to int
+
+    return last_number

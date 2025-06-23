@@ -13,6 +13,7 @@ from matplotlib.lines import Line2D
 
 from analysis import plot_earthquake_location, plot_station_times_on_map
 from cursors import *
+from picking.basic_functions import get_last_number
 from traces import *
 
 mpl.rcParams["savefig.directory"] = "../results/plots"
@@ -228,7 +229,7 @@ class Application(tk.Frame):
         if os.path.isfile(pick_path):
             with open(pick_path, 'r') as fp:
                 self.station_picks = json.load(fp)
-                number = 0
+                numbers = []
                 for name, metadata in self.station_picks.items():
                     number = metadata['number']
                     picks = metadata['picks']
@@ -249,10 +250,16 @@ class Application(tk.Frame):
                     #     self.time_shift_errs[1][number] = 0
                     # update color
                     self.colors[number] = color_map(int(quality) / 5)
-                    # update order
+                    # update plotting order
                     self.orders[number] = int(quality)
-                # update the current station number to the last station number
-                self.curr_station = number
+
+                    # keep track of the station number
+                    numbers.append(number)
+
+                # update the current station number to the largest station number in the smallest consecutive group
+                last_station = get_last_number(numbers)
+                print(numbers, last_station)
+                self.curr_station = last_station
 
         # load station data
         # if there was no event loaded previously, no need to save the picks, either because there are no picks yet,
@@ -289,7 +296,7 @@ class Application(tk.Frame):
         # add tool tips
         MyTooltip(btn_prev, "Go to the previous station", hover_delay=hover_delay)
         MyTooltip(btn_next, "Go to the next station", hover_delay=hover_delay)
-        MyTooltip(btn_last, "Go to the last processed station", hover_delay=hover_delay)
+        MyTooltip(btn_last, "Go to the last processed station in order", hover_delay=hover_delay)
         MyTooltip(btn_delete, "Delete the picks", hover_delay=hover_delay)
         MyTooltip(btn_save, "Save the picks", hover_delay=hover_delay)
         MyTooltip(btn_earthquake, "Plot the earthquake location on a map", hover_delay=hover_delay)
@@ -489,8 +496,14 @@ class Application(tk.Frame):
         self.load_station_data(num=curr_station)
 
     def load_last_station_data(self):
-        curr_station = len(self.station_picks) - 1  # assume that picking is done in order
-        self.load_station_data(num=curr_station)
+        # curr_station = len(self.station_picks) - 1  # assume that picking is done in order
+        numbers = []
+        for name, metadata in self.station_picks.items():
+            number = metadata['number']
+            numbers.append(number)
+
+        last_station = get_last_number(numbers)
+        self.load_station_data(num=last_station)
 
     def load_input_station_data(self):
         curr_station_name = self.txt_input.get("1.0", "end-1c")
@@ -740,6 +753,9 @@ class Application(tk.Frame):
             item.config(background='white')  # for labels
         toolbar.grid(row=1, column=0, sticky='nsew')
 
+    def get_phase_name(self):
+        return self.phase_name
+
 
 class MyTooltip(OnHoverTooltipBase):
     "A tooltip that pops up when a mouse hovers over an anchor widget."
@@ -789,10 +805,12 @@ if __name__ == '__main__':
     app.mainloop()
     # save station_picks to json if it is not empty
     station_picks = app.get_station_picks()
+    phase_name = app.get_phase_name()
     if station_picks:
-        with open('../results/picks/' + os.path.basename(app.get_dir_path()) + '.json', 'w') as fp:
+        with open('../results/picks/' + os.path.basename(app.get_dir_path()) + '_' + phase_name + '.json', 'w') as fp:
             json.dump(app.get_station_picks(), fp, indent=4)
 
 # TODO: consider use a pop-up window to explain the quality scale
 # TODO: make option menu box larger
 # TODO: go to the last station how to implement
+# TODO: save the current station to json
