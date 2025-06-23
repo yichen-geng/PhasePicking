@@ -1,4 +1,3 @@
-import json
 import tkinter as tk
 from idlelib.tooltip import OnHoverTooltipBase
 from tkinter import messagebox
@@ -12,8 +11,8 @@ from matplotlib.cm import get_cmap
 from matplotlib.lines import Line2D
 
 from analysis import plot_earthquake_location, plot_station_times_on_map
+from basic_functions import get_last_number
 from cursors import *
-from picking.basic_functions import get_last_number
 from traces import *
 
 mpl.rcParams["savefig.directory"] = "../results/plots"
