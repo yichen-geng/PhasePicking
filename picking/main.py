@@ -3,6 +3,7 @@ import tkinter as tk
 from idlelib.tooltip import OnHoverTooltipBase
 from tkinter import messagebox
 from tkinter.filedialog import askdirectory
+from tkinter.simpledialog import askstring
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -89,6 +90,9 @@ class Application(tk.Frame):
 
         # initialize the dictionary for storing metadata
         self.station_picks = {}  # dictionary to store picks and quality
+
+        # initialize the phase name
+        self.phase_name = None
 
         self.create_frames()
 
@@ -179,6 +183,14 @@ class Application(tk.Frame):
         if not self.dir_path:
             return
 
+        # TODO: ask for phase make this better
+        self.phase_name = askstring("Input", "Enter a phase name:")
+        while self.phase_name not in ['P', 'PcP']:
+            msg = "Invalid phase name / phase not supported. Choose 'P' or 'PcP'."
+            messagebox.showwarning(message=msg)
+            self.phase_name = askstring("Input", "Enter a phase name:")
+
+        # TODO: make this looks better
         # open a popup window to show the progress bar
         top = tk.Toplevel(background='white')
         x = root.winfo_x()
@@ -194,7 +206,7 @@ class Application(tk.Frame):
         # preprocess event data
         self.event_locs, self.distance_contours, \
         self.station_names, self.station_locs, self.distances, self.travel_times, self.sn_ratios, \
-        self.stream_long, self.stream_short = preprocess_traces(self.dir_path)
+        self.stream_long, self.stream_short = preprocess_traces(self.dir_path, phase=self.phase_name)
         top.destroy()
         self.n_stations = len(self.station_names)
 
@@ -212,7 +224,7 @@ class Application(tk.Frame):
         self.orders = np.zeros(self.n_stations)
 
         # load existing station picks and quality
-        pick_path = '../results/picks/' + os.path.basename(self.dir_path) + '.json'
+        pick_path = '../results/picks/' + os.path.basename(self.dir_path) + '_' + self.phase_name + '.json'
         if os.path.isfile(pick_path):
             with open(pick_path, 'r') as fp:
                 self.station_picks = json.load(fp)
@@ -628,7 +640,7 @@ class Application(tk.Frame):
             return True
 
     def save_station_picks(self):
-        with open('../results/picks/' + os.path.basename(self.dir_path) + '.json', 'w') as fp:
+        with open('../results/picks/' + os.path.basename(self.dir_path) + '_' + self.phase_name + '.json', 'w') as fp:
             json.dump(self.station_picks, fp, indent=4)
 
     def get_dir_path(self):

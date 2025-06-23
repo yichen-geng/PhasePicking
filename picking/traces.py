@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 from datetime import timedelta
 
@@ -57,6 +58,14 @@ def preprocess_traces(event_dir, phase='PcP'):
     stream_long_data = []
     stream_short_data = []
 
+    # load automatic picks if exist
+    autopick = False
+    autopicks_path = '../data/autopicks/' + ev_time_str + '_results_' + phase + '.json'
+    if os.path.isfile(autopicks_path):
+        with open(autopicks_path, 'r') as fp:
+            autopicks = json.load(fp)
+            autopick = True
+
     for i in range(len(stations)):
         st = stations.iloc[i]
         st_name = st['name']
@@ -84,8 +93,12 @@ def preprocess_traces(event_dir, phase='PcP'):
                 trace_short_data, trace_long_data, data_status = \
                     preprocess_single_trace(file_dir, decimation, ev_time_JST, travel_time)
 
-                # calculate signal-to-noise ratio
-                sn_ratio = calculate_signal_to_noise_ratio(trace_short_data, sampling_rate)
+                # load quality factor if exists
+                if autopick and st_name[-4:] in autopicks:
+                    sn_ratio = autopicks[st_name[-4:]]['qf']
+                else:
+                    # a quick & dirty way to calculate the signal-to-noise ratio
+                    sn_ratio = calculate_signal_to_noise_ratio(trace_short_data, sampling_rate)
 
                 st_names.append(st_name)
                 st_locs.append((st_lat, st_lon))
